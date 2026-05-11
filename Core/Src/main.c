@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 
 #include <stdint.h>
+#include "key.h"
 
 /* USER CODE END Includes */
 
@@ -109,6 +110,10 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
 
+  uint8_t  led_mode    = 0;   /* 0=停止, 1=LED0闪烁, 2=LED1闪烁 */
+  uint32_t last_toggle = 0;   /* 上次翻转时刻 (ms) */
+  uint8_t  key;
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -132,6 +137,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   MX_USART1_Init();
+  key_init();
 
   /* USER CODE END 2 */
 
@@ -141,12 +147,39 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
-    USART1_SendString("HelloWorld\r\n");
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_5);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_RESET);
-    HAL_Delay(500);
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
-    HAL_Delay(500);
+    /* 扫描按键（不支持连按） */
+    key = key_scan(0);
+
+    if (key == KEY1_PRES)
+    {
+      led_mode = 1; /* KEY1 按下 -> LED0 闪烁 */
+    }
+    else if (key == KEY2_PRES)
+    {
+      led_mode = 2; /* KEY2 按下 -> LED1 闪烁 */
+    }
+    else if (key == KEY3_PRES)
+    {
+      led_mode = 0; /* KEY3 按下 -> 停止闪烁 */
+      HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET); /* LED0 熄灭 */
+      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET); /* LED1 熄灭 */
+    }
+
+    /* 每 500 ms 翻转一次对应的 LED */
+    if (HAL_GetTick() - last_toggle >= 500U)
+    {
+      last_toggle = HAL_GetTick();
+      if (led_mode == 1)
+      {
+        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_5);               /* LED0 闪烁 */
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);  /* LED1 熄灭 */
+      }
+      else if (led_mode == 2)
+      {
+        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET);  /* LED0 熄灭 */
+        HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_2);               /* LED1 闪烁 */
+      }
+    }
 
     /* USER CODE BEGIN 3 */
   }
